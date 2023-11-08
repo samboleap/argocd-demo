@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: spring-app
+  template:
+    metadata:
+      labels:
+        app: spring-app
+    spec:
+      containers:
+        - name: spring-container 
+          image: samboleap/spring_boot-img:v1
+          ports:
+            - containerPort: 8081
+          volumeMounts:
+            - name: my-vol
+              mountPath: /src/main/resources/images
+      volumes:
+        - name: my-vol 
+          nfs:
+            server: 139.59.108.107
+            path: /opt/nfs/data
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: spring-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: spring-app
+  ports:
+    - port: 8081
+      targetPort: 8081
+---
+# create ingress for the spring application 
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: spring-ingress
+  annotations: 
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingresClassName: nginx
+spec:
+  tls:
+    - hosts:
+        - springbook.samboleap.com
+      secretName: myspring-tls 
+  rules:
+    - host: springboot.samboleap.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: spring-svc
+                port:
+                  number: 8081
